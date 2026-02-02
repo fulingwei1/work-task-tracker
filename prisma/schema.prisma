@@ -10,5 +10,155 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Models will be added in Task 2 (schema-auth)
-// See docs/ai-spec/03-data-model.md for the complete schema
+// Enums
+enum UserRole {
+  STAFF
+  MANAGER
+  DIRECTOR
+  CEO
+  ADMIN
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_REVIEW
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+enum TaskPriority {
+  P1
+  P2
+  P3
+}
+
+enum TaskSource {
+  MANUAL
+  MEETING
+  PLAN
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  TASK_NO_UPDATE
+  TASK_BLOCKED
+  TASK_STATUS_CHANGED
+}
+
+enum NotificationChannel {
+  WECHAT
+  IN_APP
+}
+
+// Models
+model User {
+  id           String   @id @default(cuid())
+  wxUserId     String?  @unique
+  name         String
+  departmentId String?
+  role         UserRole @default(STAFF)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department    Department?    @relation(fields: [departmentId], references: [id])
+  ownedTasks    Task[]         @relation("TaskOwner")
+  createdTasks  Task[]         @relation("TaskCreator")
+  taskUpdates   TaskUpdate[]
+  notifications Notification[]
+
+  @@index([departmentId])
+}
+
+model Department {
+  id       String  @id @default(cuid())
+  wxDeptId String? @unique
+  name     String
+  parentId String?
+
+  parent   Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children Department[] @relation("DepartmentHierarchy")
+  users    User[]
+
+  @@index([parentId])
+}
+
+model Task {
+  id                 String       @id @default(cuid())
+  title              String
+  ownerId            String
+  collaboratorIds    String[]
+  status             TaskStatus   @default(NOT_STARTED)
+  priority           TaskPriority @default(P2)
+  dueDate            DateTime?
+  acceptanceCriteria String?
+  source             TaskSource   @default(MANUAL)
+  sourceMeetingId    String?
+  sourcePlanId       String?
+  sourcePlanItemId   String?
+  createdBy          String
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
+
+  owner            User               @relation("TaskOwner", fields: [ownerId], references: [id])
+  creator          User               @relation("TaskCreator", fields: [createdBy], references: [id])
+  updates          TaskUpdate[]
+  notifications    Notification[]
+  notificationLogs NotificationLog[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([deletedAt])
+}
+
+model TaskUpdate {
+  id                  String      @id @default(cuid())
+  taskId              String
+  userId              String
+  progressPercent     Int
+  status              TaskStatus?
+  blockerType         String?
+  blockerDesc         String?
+  nextAction          String?
+  estimatedCompletion DateTime?
+  createdAt           DateTime    @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String
+  taskId    String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User  @relation(fields: [userId], references: [id])
+  task Task? @relation(fields: [taskId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model NotificationLog {
+  id          String              @id @default(cuid())
+  taskId      String
+  triggerType NotificationType
+  channel     NotificationChannel
+  sentAt      DateTime            @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+}
