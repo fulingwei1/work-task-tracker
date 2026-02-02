@@ -72,3 +72,41 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 - **Worktree 根目录**：`.worktrees/<branch-name>`（项目本地）。
 - 创建 Worktree 前必须确认 `.worktrees` 已写入 `.gitignore`。
 - 分支命名：`feature/<short-name>`，例如 `feature/foundation`、`feature/task-api`。
+
+## 部署说明
+
+### 督办定时任务
+
+督办系统使用 `node-cron` 在固定时间执行扫描任务：
+- 09:00 - 扫描截止日期，触发提醒
+- 10:00 - 扫描逾期任务，通知升级
+- 14:00 - 扫描长时间未更新的任务
+
+**重要**：`node-cron` 需要常驻进程才能正常执行。
+
+#### 部署方式
+
+1. **自有服务器（推荐）**
+   - 使用 `next start` 或 PM2 运行 Next.js 生产版本
+   - 确保进程持续运行（可使用 systemd 或 supervisor）
+   - 示例：`pm2 start npm --name "task-tracker" -- start`
+
+2. **Docker 容器**
+   - 使用 `node server.js` 或 `next start` 作为入口
+   - 确保容器不会因为空闲而被回收
+
+3. **Vercel / Serverless（不推荐）**
+   - Vercel 的 serverless 函数无常驻进程，cron 无法自动执行
+   - 需配合外部调度服务（如 Vercel Cron、GitHub Actions）定时调用 `/api/supervisory/scan` 接口
+
+#### 手动触发
+
+管理员可通过 API 手动触发督办扫描：
+```bash
+POST /api/supervisory/scan
+```
+
+查看 cron 状态：
+```bash
+GET /api/supervisory/scan
+```
