@@ -1,0 +1,50 @@
+import { cn } from "@/lib/utils";
+import type { TaskStatus } from "@/types";
+
+interface StatusBadgeProps {
+  status: TaskStatus;
+  size?: "sm" | "md";
+}
+
+const statusConfig: Record<TaskStatus, { label: string; className: string }> = {
+  NOT_STARTED: {
+    label: "Not Started",
+    className: "bg-gray-100 text-gray-600",
+  },
+  IN_PROGRESS: {
+    label: "In Progress",
+    className: "bg-blue-50 text-blue-600",
+  },
+  PENDING_REVIEW: {
+    label: "Pending Review",
+    className: "bg-amber-50 text-amber-600",
+  },
+  COMPLETED: {
+    label: "Completed",
+    className: "bg-emerald-50 text-emerald-600",
+  },
+  BLOCKED: {
+    label: "Blocked",
+    className: "bg-red-50 text-red-600",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    className: "bg-gray-100 text-gray-400",
+  },
+};
+
+export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
+  const config = statusConfig[status];
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center font-semibold rounded-full whitespace-nowrap",
+        size === "sm" ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-xs",
+        config.className
+      )}
+    >
+      {config.label}
+    </span>
+  );
+}

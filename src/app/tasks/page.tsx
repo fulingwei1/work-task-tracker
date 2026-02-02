@@ -1,19 +1,35 @@
-export default function TasksPage() {
+"use client";
+
+import { Suspense } from "react";
+import { TaskCardSkeleton } from "@/components/task";
+import { TasksContent } from "./tasks-content";
+
+function LoadingFallback() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">任务列表</h1>
-          <p className="text-gray-500 mt-1">管理和跟踪您的所有任务</p>
+          <div className="h-8 w-24 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-48 bg-gray-200 rounded animate-pulse mt-2" />
         </div>
-        <button className="bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors">
-          创建任务
-        </button>
+        <div className="h-10 w-28 bg-gray-200 rounded animate-pulse" />
       </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <p className="text-gray-500">任务列表将在任务 4 中实现...</p>
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="h-10 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="space-y-3">
+        <TaskCardSkeleton />
+        <TaskCardSkeleton />
+        <TaskCardSkeleton />
       </div>
     </div>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <TasksContent />
+    </Suspense>
   );
 }
