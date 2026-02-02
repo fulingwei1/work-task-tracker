@@ -13,6 +13,7 @@ import {
   getTaskVisibilityFilter,
   canAssignTaskTo,
 } from "@/lib/api/permissions"
+import { createTaskAssignedNotification } from "@/lib/notifications"
 import { TaskPriority, TaskStatus, Prisma } from "@prisma/client"
 
 // GET /api/tasks - List tasks with filtering
@@ -187,6 +188,14 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
         },
       },
     })
+
+    // Create TASK_ASSIGNED notification for the owner
+    await createTaskAssignedNotification(
+      ownerId,
+      task.id,
+      task.title,
+      user.name
+    )
 
     return successSingle(task)
   } catch (error) {
