@@ -47,6 +47,10 @@ enum NotificationType {
   TASK_NO_UPDATE
   TASK_BLOCKED
   TASK_STATUS_CHANGED
+  TASK_COMMENTED
+  TASK_REVIEW_REQUESTED
+  TASK_REVIEW_PASSED
+  TASK_REVIEW_FAILED
 }
 
 enum NotificationChannel {
@@ -70,6 +74,9 @@ model User {
   taskUpdates     TaskUpdate[]
   notifications   Notification[]
   createdMeetings Meeting[]      @relation("MeetingCreator")
+  comments        Comment[]
+  evidences       Evidence[]
+  reviews         Review[]
 
   @@index([departmentId])
 }
@@ -111,6 +118,9 @@ model Task {
   updates          TaskUpdate[]
   notifications    Notification[]
   notificationLogs NotificationLog[]
+  comments         Comment[]
+  evidences        Evidence[]
+  reviews          Review[]
 
   @@index([ownerId])
   @@index([status])
@@ -178,4 +188,75 @@ model Meeting {
 
   @@index([createdBy])
   @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+enum EvidenceType {
+  FILE
+  IMAGE
+  LINK
+  TEXT
+}
+
+enum ReviewResult {
+  PASS
+  FAIL
+}
+
+enum QualityRating {
+  EXCELLENT
+  QUALIFIED
+  RISK
+  UNQUALIFIED
+}
+
+model Evidence {
+  id          String       @id @default(cuid())
+  taskId      String
+  userId      String
+  type        EvidenceType
+  filename    String?      // 原始文件名
+  url         String       // 文件路径或链接
+  mimeType    String?      // 文件MIME类型
+  size        Int?         // 文件大小（字节）
+  description String?      @db.Text
+  createdAt   DateTime     @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Review {
+  id            String         @id @default(cuid())
+  taskId        String
+  reviewerId    String
+  result        ReviewResult
+  failReason    String?        @db.Text
+  rating        QualityRating?
+  ratingReason  String?        @db.Text
+  suggestions   String?        @db.Text
+  createdAt     DateTime       @default(now())
+
+  task     Task @relation(fields: [taskId], references: [id])
+  reviewer User @relation(fields: [reviewerId], references: [id])
+
+  @@index([taskId])
+  @@index([reviewerId])
 }

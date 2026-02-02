@@ -20,6 +20,9 @@ import {
   PriorityBadge,
   ProgressRing,
   ProgressUpdateDialog,
+  CommentList,
+  EvidenceList,
+  ReviewSection,
 } from "@/components/task";
 import type { TaskDetail, ApiSingleResponse, ProgressUpdateFormData } from "@/types";
 
@@ -61,24 +64,35 @@ function getRelativeTime(dateString: string): string {
   return formatDate(dateString);
 }
 
+interface CurrentUser {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export default function TaskDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
 
   const [task, setTask] = useState<TaskDetail | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Progress update dialog
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
 
-  // Fetch task details
+  // Fetch task details and current user
   useEffect(() => {
-    async function fetchTask() {
+    async function fetchData() {
       try {
-        const res = await fetch(`/api/tasks/${id}`);
-        if (!res.ok) {
-          if (res.status === 404) {
+        const [taskRes, userRes] = await Promise.all([
+          fetch(`/api/tasks/${id}`),
+          fetch(`/api/auth/me`),
+        ]);
+
+        if (!taskRes.ok) {
+          if (taskRes.status === 404) {
             setError("任务未找到");
           } else {
             setError("加载任务失败");
@@ -86,18 +100,32 @@ export default function TaskDetailPage({ params }: PageProps) {
           return;
         }
 
-        const data: ApiSingleResponse<TaskDetail> = await res.json();
-        setTask(data.data);
+        const taskData: ApiSingleResponse<TaskDetail> = await taskRes.json();
+        setTask(taskData.data);
+
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setCurrentUser(userData.data);
+        }
       } catch (err) {
-        console.error("Failed to fetch task:", err);
+        console.error("Failed to fetch data:", err);
         setError("加载任务失败");
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchTask();
+    fetchData();
   }, [id]);
+
+  // 刷新任务数据
+  const refetchTask = async () => {
+    const taskRes = await fetch(`/api/tasks/${id}`);
+    if (taskRes.ok) {
+      const taskData = await taskRes.json();
+      setTask(taskData.data);
+    }
+  };
 
   const handleProgressSubmit = async (data: ProgressUpdateFormData) => {
     const res = await fetch(`/api/tasks/${id}/updates`, {
@@ -107,10 +135,7 @@ export default function TaskDetailPage({ params }: PageProps) {
     });
 
     if (res.ok) {
-      // Refetch task
-      const taskRes = await fetch(`/api/tasks/${id}`);
-      const taskData = await taskRes.json();
-      setTask(taskData.data);
+      await refetchTask();
     }
   };
 
@@ -307,6 +332,32 @@ export default function TaskDetailPage({ params }: PageProps) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Review Section */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <ReviewSection
+          taskId={id}
+          taskStatus={task.status}
+          isOwner={currentUser?.id === task.ownerId}
+          canReview={
+            currentUser !== null &&
+            currentUser.id !== task.ownerId &&
+            (currentUser.id === task.createdBy ||
+              ["MANAGER", "DIRECTOR", "CEO", "ADMIN"].includes(currentUser.role))
+          }
+          onStatusChange={refetchTask}
+        />
+      </div>
+
+      {/* Evidence Section */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <EvidenceList taskId={id} />
+      </div>
+
+      {/* Comments Section */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <CommentList taskId={id} />
       </div>
 
       {/* Progress Update Dialog */}

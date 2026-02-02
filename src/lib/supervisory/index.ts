@@ -1,16 +1,24 @@
 import { prisma } from "@/lib/db"
 import { NotificationType, NotificationChannel, TaskStatus } from "@prisma/client"
+import {
+  isWeChatConfigured,
+  sendTaskReminderMessage,
+  sendTaskOverdueMessage,
+  sendTaskBlockedMessage,
+} from "@/lib/wechat"
 
 const DEDUP_WINDOW_HOURS = 24
 const DUE_SOON_DAYS = 2
 const NO_UPDATE_DAYS = 7
 const BLOCKED_THRESHOLD_DAYS = 2
+const OVERDUE_REPEAT_DAYS = 3 // 逾期超过3天后，每3天提醒一次
 
 interface SupervisoryResult {
   dueSoon: number
   overdue: number
   noUpdate: number
   blocked: number
+  wechatSent: number
   totalNotifications: number
 }
 
@@ -19,19 +27,28 @@ interface SupervisoryResult {
  */
 async function wasNotificationSentRecently(
   taskId: string,
-  triggerType: NotificationType
+  triggerType: NotificationType,
+  channel?: NotificationChannel
 ): Promise<boolean> {
   const cutoff = new Date()
   cutoff.setHours(cutoff.getHours() - DEDUP_WINDOW_HOURS)
 
-  const existing = await prisma.notificationLog.findFirst({
-    where: {
-      taskId,
-      triggerType,
-      sentAt: { gte: cutoff },
-    },
-  })
+  const where: {
+    taskId: string
+    triggerType: NotificationType
+    sentAt: { gte: Date }
+    channel?: NotificationChannel
+  } = {
+    taskId,
+    triggerType,
+    sentAt: { gte: cutoff },
+  }
 
+  if (channel) {
+    where.channel = channel
+  }
+
+  const existing = await prisma.notificationLog.findFirst({ where })
   return existing !== null
 }
 
@@ -48,7 +65,7 @@ async function createSupervisoryNotification(params: {
 }): Promise<void> {
   const { userId, type, title, content, taskId, channel } = params
 
-  // Create notification
+  // Create in-app notification
   await prisma.notification.create({
     data: {
       userId,
@@ -72,7 +89,7 @@ async function createSupervisoryNotification(params: {
 /**
  * Get the manager of a user (if they have one)
  */
-async function getUserManager(userId: string): Promise<string | null> {
+async function getUserManager(userId: string): Promise<{ id: string; wxUserId: string | null } | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -81,7 +98,7 @@ async function getUserManager(userId: string): Promise<string | null> {
           users: {
             where: { role: "MANAGER" },
             take: 1,
-            select: { id: true },
+            select: { id: true, wxUserId: true },
           },
         },
       },
@@ -92,19 +109,45 @@ async function getUserManager(userId: string): Promise<string | null> {
     return null
   }
 
-  const managerId = user.department.users[0].id
-  return managerId !== userId ? managerId : null
+  const manager = user.department.users[0]
+  return manager.id !== userId ? manager : null
+}
+
+/**
+ * Get user with wxUserId
+ */
+async function getUserWithWxId(userId: string): Promise<{ id: string; wxUserId: string | null; name: string } | null> {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, wxUserId: true, name: true },
+  })
+}
+
+/**
+ * 状态中文映射
+ */
+function getStatusLabel(status: TaskStatus): string {
+  const labels: Record<TaskStatus, string> = {
+    NOT_STARTED: "未开始",
+    IN_PROGRESS: "进行中",
+    PENDING_REVIEW: "待验收",
+    COMPLETED: "已完成",
+    BLOCKED: "已阻塞",
+    CANCELLED: "已取消",
+  }
+  return labels[status] || status
 }
 
 /**
  * Scan for tasks due within 2 days (TASK_DUE_SOON)
+ * 截止前2天：站内通知
+ * 截止当天：企业微信 + 站内
  */
-async function scanDueSoonTasks(): Promise<number> {
+async function scanDueSoonTasks(): Promise<{ count: number; wechat: number }> {
   const now = new Date()
   const dueSoonDate = new Date()
   dueSoonDate.setDate(dueSoonDate.getDate() + DUE_SOON_DAYS)
 
-  // Find tasks due within 2 days, not overdue yet, not completed/cancelled
   const tasks = await prisma.task.findMany({
     where: {
       deletedAt: null,
@@ -117,11 +160,13 @@ async function scanDueSoonTasks(): Promise<number> {
       },
     },
     include: {
-      owner: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true, wxUserId: true } },
     },
   })
 
   let count = 0
+  let wechatCount = 0
+
   for (const task of tasks) {
     const alreadySent = await wasNotificationSentRecently(
       task.id,
@@ -133,103 +178,63 @@ async function scanDueSoonTasks(): Promise<number> {
       (task.dueDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     )
 
+    const isDueToday = daysLeft <= 1
+
+    // 站内通知
     await createSupervisoryNotification({
       userId: task.ownerId,
       type: NotificationType.TASK_DUE_SOON,
-      title: "Task due soon",
-      content: `Task "${task.title}" is due in ${daysLeft} day${daysLeft > 1 ? "s" : ""}`,
+      title: isDueToday ? "任务今日截止" : "任务即将到期",
+      content: `任务「${task.title}」${isDueToday ? "今日截止" : `还剩 ${daysLeft} 天截止`}`,
       taskId: task.id,
       channel: NotificationChannel.IN_APP,
     })
     count++
+
+    // 截止当天发送企业微信
+    if (isDueToday && isWeChatConfigured() && task.owner.wxUserId) {
+      const sent = await sendTaskReminderMessage({
+        wxUserId: task.owner.wxUserId,
+        taskId: task.id,
+        taskTitle: task.title,
+        daysInfo: "⏰ 今日截止",
+        status: getStatusLabel(task.status),
+      })
+      if (sent) {
+        wechatCount++
+        await prisma.notificationLog.create({
+          data: {
+            taskId: task.id,
+            triggerType: NotificationType.TASK_DUE_SOON,
+            channel: NotificationChannel.WECHAT,
+          },
+        })
+      }
+    }
   }
 
-  return count
+  return { count, wechat: wechatCount }
 }
 
 /**
  * Scan for overdue tasks (TASK_OVERDUE)
+ * 逾期第1天：企业微信 + 站内（负责人 + 主管）
+ * 逾期超过3天：每3天提醒一次
  */
-async function scanOverdueTasks(): Promise<number> {
+async function scanOverdueTasks(): Promise<{ count: number; wechat: number }> {
   const now = new Date()
-  now.setHours(0, 0, 0, 0) // Start of today
+  now.setHours(0, 0, 0, 0)
 
-  // Find tasks that are overdue
   const tasks = await prisma.task.findMany({
     where: {
       deletedAt: null,
-      dueDate: {
-        lt: now,
-      },
+      dueDate: { lt: now },
       status: {
         notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED],
       },
     },
     include: {
-      owner: { select: { id: true, name: true } },
-    },
-  })
-
-  let count = 0
-  for (const task of tasks) {
-    const alreadySent = await wasNotificationSentRecently(
-      task.id,
-      NotificationType.TASK_OVERDUE
-    )
-    if (alreadySent) continue
-
-    const daysOverdue = Math.ceil(
-      (now.getTime() - task.dueDate!.getTime()) / (1000 * 60 * 60 * 24)
-    )
-
-    // Notify owner
-    await createSupervisoryNotification({
-      userId: task.ownerId,
-      type: NotificationType.TASK_OVERDUE,
-      title: "Task overdue",
-      content: `Task "${task.title}" is overdue by ${daysOverdue} day${daysOverdue > 1 ? "s" : ""}`,
-      taskId: task.id,
-      channel: NotificationChannel.IN_APP,
-    })
-    count++
-
-    // Also notify manager if overdue >= 1 day
-    if (daysOverdue >= 1) {
-      const managerId = await getUserManager(task.ownerId)
-      if (managerId) {
-        await createSupervisoryNotification({
-          userId: managerId,
-          type: NotificationType.TASK_OVERDUE,
-          title: "Team member task overdue",
-          content: `Task "${task.title}" assigned to ${task.owner.name} is overdue by ${daysOverdue} day${daysOverdue > 1 ? "s" : ""}`,
-          taskId: task.id,
-          channel: NotificationChannel.IN_APP,
-        })
-        count++
-      }
-    }
-  }
-
-  return count
-}
-
-/**
- * Scan for tasks with no progress updates in 7 days (TASK_NO_UPDATE)
- */
-async function scanNoUpdateTasks(): Promise<number> {
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - NO_UPDATE_DAYS)
-
-  // Find active tasks without updates in the last 7 days
-  const tasks = await prisma.task.findMany({
-    where: {
-      deletedAt: null,
-      status: {
-        in: [TaskStatus.NOT_STARTED, TaskStatus.IN_PROGRESS],
-      },
-    },
-    include: {
-      owner: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true, wxUserId: true } },
       updates: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -239,8 +244,134 @@ async function scanNoUpdateTasks(): Promise<number> {
   })
 
   let count = 0
+  let wechatCount = 0
+
   for (const task of tasks) {
-    // Check last update date
+    const daysOverdue = Math.ceil(
+      (now.getTime() - task.dueDate!.getTime()) / (1000 * 60 * 60 * 24)
+    )
+
+    // 检查是否需要发送（逾期超过3天时，每3天发一次）
+    let shouldSend = false
+    if (daysOverdue <= OVERDUE_REPEAT_DAYS) {
+      const alreadySent = await wasNotificationSentRecently(
+        task.id,
+        NotificationType.TASK_OVERDUE
+      )
+      shouldSend = !alreadySent
+    } else {
+      // 超过3天，检查是否是3的倍数天
+      if (daysOverdue % OVERDUE_REPEAT_DAYS === 0) {
+        const alreadySent = await wasNotificationSentRecently(
+          task.id,
+          NotificationType.TASK_OVERDUE
+        )
+        shouldSend = !alreadySent
+      }
+    }
+
+    if (!shouldSend) continue
+
+    const lastUpdateDate = task.updates[0]?.createdAt ?? task.createdAt
+    const lastUpdateDays = Math.ceil(
+      (Date.now() - lastUpdateDate.getTime()) / (1000 * 60 * 60 * 24)
+    )
+
+    // 站内通知给负责人
+    await createSupervisoryNotification({
+      userId: task.ownerId,
+      type: NotificationType.TASK_OVERDUE,
+      title: "任务已逾期",
+      content: `任务「${task.title}」已逾期 ${daysOverdue} 天`,
+      taskId: task.id,
+      channel: NotificationChannel.IN_APP,
+    })
+    count++
+
+    // 通知主管
+    const manager = await getUserManager(task.ownerId)
+    if (manager) {
+      await createSupervisoryNotification({
+        userId: manager.id,
+        type: NotificationType.TASK_OVERDUE,
+        title: "团队成员任务逾期",
+        content: `${task.owner.name} 的任务「${task.title}」已逾期 ${daysOverdue} 天`,
+        taskId: task.id,
+        channel: NotificationChannel.IN_APP,
+      })
+      count++
+    }
+
+    // 企业微信推送
+    if (isWeChatConfigured()) {
+      // 通知负责人
+      if (task.owner.wxUserId) {
+        const sent = await sendTaskOverdueMessage({
+          wxUserId: task.owner.wxUserId,
+          taskId: task.id,
+          taskTitle: task.title,
+          ownerName: task.owner.name,
+          daysOverdue,
+          lastUpdateDays,
+        })
+        if (sent) {
+          wechatCount++
+          await prisma.notificationLog.create({
+            data: {
+              taskId: task.id,
+              triggerType: NotificationType.TASK_OVERDUE,
+              channel: NotificationChannel.WECHAT,
+            },
+          })
+        }
+      }
+
+      // 通知主管
+      if (manager?.wxUserId) {
+        const sent = await sendTaskOverdueMessage({
+          wxUserId: manager.wxUserId,
+          taskId: task.id,
+          taskTitle: task.title,
+          ownerName: task.owner.name,
+          daysOverdue,
+          lastUpdateDays,
+        })
+        if (sent) wechatCount++
+      }
+    }
+  }
+
+  return { count, wechat: wechatCount }
+}
+
+/**
+ * Scan for tasks with no progress updates in 7 days (TASK_NO_UPDATE)
+ * 7天未更新：站内通知
+ */
+async function scanNoUpdateTasks(): Promise<{ count: number; wechat: number }> {
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - NO_UPDATE_DAYS)
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      deletedAt: null,
+      status: {
+        in: [TaskStatus.NOT_STARTED, TaskStatus.IN_PROGRESS],
+      },
+    },
+    include: {
+      owner: { select: { id: true, name: true, wxUserId: true } },
+      updates: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+    },
+  })
+
+  let count = 0
+
+  for (const task of tasks) {
     const lastUpdateDate = task.updates[0]?.createdAt ?? task.createdAt
     if (lastUpdateDate > cutoffDate) continue
 
@@ -257,44 +388,45 @@ async function scanNoUpdateTasks(): Promise<number> {
     await createSupervisoryNotification({
       userId: task.ownerId,
       type: NotificationType.TASK_NO_UPDATE,
-      title: "Task needs update",
-      content: `Task "${task.title}" has not been updated for ${daysSinceUpdate} days`,
+      title: "任务需要更新",
+      content: `任务「${task.title}」已 ${daysSinceUpdate} 天未更新进度`,
       taskId: task.id,
       channel: NotificationChannel.IN_APP,
     })
     count++
   }
 
-  return count
+  return { count, wechat: 0 }
 }
 
 /**
  * Scan for blocked tasks over 2 days (TASK_BLOCKED)
+ * 阻塞超过2天：企业微信 + 站内（负责人 + 主管）
  */
-async function scanBlockedTasks(): Promise<number> {
+async function scanBlockedTasks(): Promise<{ count: number; wechat: number }> {
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - BLOCKED_THRESHOLD_DAYS)
 
-  // Find tasks that are blocked
   const tasks = await prisma.task.findMany({
     where: {
       deletedAt: null,
       status: TaskStatus.BLOCKED,
     },
     include: {
-      owner: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true, wxUserId: true } },
       updates: {
         where: { status: TaskStatus.BLOCKED },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
         take: 1,
-        select: { createdAt: true },
+        select: { createdAt: true, blockerDesc: true },
       },
     },
   })
 
   let count = 0
+  let wechatCount = 0
+
   for (const task of tasks) {
-    // Find when task became blocked
     const blockedSince = task.updates[0]?.createdAt ?? task.updatedAt
     if (blockedSince > cutoffDate) continue
 
@@ -307,34 +439,73 @@ async function scanBlockedTasks(): Promise<number> {
     const daysBlocked = Math.ceil(
       (Date.now() - blockedSince.getTime()) / (1000 * 60 * 60 * 24)
     )
+    const blockerDesc = task.updates[0]?.blockerDesc ?? undefined
 
-    // Notify owner
+    // 站内通知给负责人
     await createSupervisoryNotification({
       userId: task.ownerId,
       type: NotificationType.TASK_BLOCKED,
-      title: "Task blocked",
-      content: `Task "${task.title}" has been blocked for ${daysBlocked} days`,
+      title: "任务阻塞",
+      content: `任务「${task.title}」已阻塞 ${daysBlocked} 天`,
       taskId: task.id,
       channel: NotificationChannel.IN_APP,
     })
     count++
 
-    // Also notify manager
-    const managerId = await getUserManager(task.ownerId)
-    if (managerId) {
+    // 通知主管
+    const manager = await getUserManager(task.ownerId)
+    if (manager) {
       await createSupervisoryNotification({
-        userId: managerId,
+        userId: manager.id,
         type: NotificationType.TASK_BLOCKED,
-        title: "Team member task blocked",
-        content: `Task "${task.title}" assigned to ${task.owner.name} has been blocked for ${daysBlocked} days`,
+        title: "团队成员任务阻塞",
+        content: `${task.owner.name} 的任务「${task.title}」已阻塞 ${daysBlocked} 天`,
         taskId: task.id,
         channel: NotificationChannel.IN_APP,
       })
       count++
     }
+
+    // 企业微信推送
+    if (isWeChatConfigured()) {
+      // 通知负责人
+      if (task.owner.wxUserId) {
+        const sent = await sendTaskBlockedMessage({
+          wxUserId: task.owner.wxUserId,
+          taskId: task.id,
+          taskTitle: task.title,
+          ownerName: task.owner.name,
+          daysBlocked,
+          blockerDesc,
+        })
+        if (sent) {
+          wechatCount++
+          await prisma.notificationLog.create({
+            data: {
+              taskId: task.id,
+              triggerType: NotificationType.TASK_BLOCKED,
+              channel: NotificationChannel.WECHAT,
+            },
+          })
+        }
+      }
+
+      // 通知主管
+      if (manager?.wxUserId) {
+        const sent = await sendTaskBlockedMessage({
+          wxUserId: manager.wxUserId,
+          taskId: task.id,
+          taskTitle: task.title,
+          ownerName: task.owner.name,
+          daysBlocked,
+          blockerDesc,
+        })
+        if (sent) wechatCount++
+      }
+    }
   }
 
-  return count
+  return { count, wechat: wechatCount }
 }
 
 /**
@@ -342,36 +513,33 @@ async function scanBlockedTasks(): Promise<number> {
  */
 export async function runSupervisoryScan(): Promise<SupervisoryResult> {
   console.log("[Supervisory] Starting scan at", new Date().toISOString())
+  console.log("[Supervisory] WeChat configured:", isWeChatConfigured())
 
-  const dueSoon = await scanDueSoonTasks()
-  console.log(`[Supervisory] Due soon notifications: ${dueSoon}`)
+  const dueSoonResult = await scanDueSoonTasks()
+  console.log(`[Supervisory] Due soon: ${dueSoonResult.count} notifications, ${dueSoonResult.wechat} wechat`)
 
-  const overdue = await scanOverdueTasks()
-  console.log(`[Supervisory] Overdue notifications: ${overdue}`)
+  const overdueResult = await scanOverdueTasks()
+  console.log(`[Supervisory] Overdue: ${overdueResult.count} notifications, ${overdueResult.wechat} wechat`)
 
-  const noUpdate = await scanNoUpdateTasks()
-  console.log(`[Supervisory] No update notifications: ${noUpdate}`)
+  const noUpdateResult = await scanNoUpdateTasks()
+  console.log(`[Supervisory] No update: ${noUpdateResult.count} notifications`)
 
-  const blocked = await scanBlockedTasks()
-  console.log(`[Supervisory] Blocked notifications: ${blocked}`)
+  const blockedResult = await scanBlockedTasks()
+  console.log(`[Supervisory] Blocked: ${blockedResult.count} notifications, ${blockedResult.wechat} wechat`)
 
-  const totalNotifications = dueSoon + overdue + noUpdate + blocked
-  console.log(`[Supervisory] Total notifications created: ${totalNotifications}`)
+  const totalNotifications =
+    dueSoonResult.count + overdueResult.count + noUpdateResult.count + blockedResult.count
+  const totalWechat =
+    dueSoonResult.wechat + overdueResult.wechat + blockedResult.wechat
+
+  console.log(`[Supervisory] Total: ${totalNotifications} notifications, ${totalWechat} wechat messages`)
 
   return {
-    dueSoon,
-    overdue,
-    noUpdate,
-    blocked,
+    dueSoon: dueSoonResult.count,
+    overdue: overdueResult.count,
+    noUpdate: noUpdateResult.count,
+    blocked: blockedResult.count,
+    wechatSent: totalWechat,
     totalNotifications,
   }
-}
-
-// Stub for WeChat push (M1 - not implemented)
-export async function sendWeChatNotification(
-  _userId: string,
-  _message: string
-): Promise<void> {
-  // TODO: Implement WeChat push in future milestone
-  console.log("[WeChat] Push notification stub - not implemented")
 }

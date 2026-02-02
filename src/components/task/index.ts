@@ -6,3 +6,6 @@ export { TaskCard, TaskCardSkeleton } from "./task-card";
 export { TaskFilters } from "./task-filters";
 export { TaskForm } from "./task-form";
 export { ProgressUpdateDialog } from "./progress-update-dialog";
+export { CommentList } from "./comment-list";
+export { EvidenceList } from "./evidence-list";
+export { ReviewSection } from "./review-section";
