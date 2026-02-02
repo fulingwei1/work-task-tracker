@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getSession, SessionUser } from "./session"
 
 export type AuthenticatedHandler<T = unknown> = (
-  request: Request,
+  request: NextRequest,
   context: { user: SessionUser; params?: T }
 ) => Promise<NextResponse>
 
 export function withAuth<T = unknown>(handler: AuthenticatedHandler<T>) {
-  return async (request: Request, context?: { params?: T }) => {
+  return async (request: NextRequest, context?: { params?: T }) => {
     const session = await getSession()
 
     if (!session) {
