@@ -44,7 +44,10 @@ export function TaskCard({ task, onEdit, onUpdateProgress, onDelete }: TaskCardP
   const progress = task.latestProgress ?? 0;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer">
+    <div
+      data-testid="task-card"
+      className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
+    >
       <div className="flex items-center gap-4">
         {/* Left: Priority indicator */}
         <div className="flex items-center gap-3">

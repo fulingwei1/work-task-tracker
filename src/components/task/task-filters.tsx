@@ -60,7 +60,7 @@ export function TaskFilters({
 
       {/* Status Filter */}
       <Select value={status} onValueChange={(v) => onStatusChange(v as TaskStatus | "ALL")}>
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-[160px]" data-testid="status-filter">
           <SelectValue placeholder="全部状态" />
         </SelectTrigger>
         <SelectContent>
@@ -74,7 +74,7 @@ export function TaskFilters({
 
       {/* Priority Filter */}
       <Select value={priority} onValueChange={(v) => onPriorityChange(v as TaskPriority | "ALL")}>
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-[160px]" data-testid="priority-filter">
           <SelectValue placeholder="全部优先级" />
         </SelectTrigger>
         <SelectContent>
