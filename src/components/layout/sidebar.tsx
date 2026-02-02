@@ -7,12 +7,14 @@ import {
   ClipboardList,
   Bell,
   Settings,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { href: "/tasks", label: "任务", icon: ClipboardList },
+  { href: "/meetings", label: "会议", icon: FileText },
   { href: "/notifications", label: "通知", icon: Bell },
   { href: "/settings", label: "设置", icon: Settings },
 ];

@@ -64,11 +64,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  department    Department?    @relation(fields: [departmentId], references: [id])
-  ownedTasks    Task[]         @relation("TaskOwner")
-  createdTasks  Task[]         @relation("TaskCreator")
-  taskUpdates   TaskUpdate[]
-  notifications Notification[]
+  department      Department?    @relation(fields: [departmentId], references: [id])
+  ownedTasks      Task[]         @relation("TaskOwner")
+  createdTasks    Task[]         @relation("TaskCreator")
+  taskUpdates     TaskUpdate[]
+  notifications   Notification[]
+  createdMeetings Meeting[]      @relation("MeetingCreator")
 
   @@index([departmentId])
 }
@@ -106,6 +107,7 @@ model Task {
 
   owner            User               @relation("TaskOwner", fields: [ownerId], references: [id])
   creator          User               @relation("TaskCreator", fields: [createdBy], references: [id])
+  sourceMeeting    Meeting?           @relation("MeetingTasks", fields: [sourceMeetingId], references: [id])
   updates          TaskUpdate[]
   notifications    Notification[]
   notificationLogs NotificationLog[]
@@ -161,4 +163,19 @@ model NotificationLog {
   task Task @relation(fields: [taskId], references: [id])
 
   @@index([taskId])
+}
+
+model Meeting {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User   @relation("MeetingCreator", fields: [createdBy], references: [id])
+  tasks   Task[] @relation("MeetingTasks")
+
+  @@index([createdBy])
+  @@index([createdAt])
 }
