@@ -120,7 +120,7 @@ export function TasksContent() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) return;
+    if (!confirm("确定要删除这个任务吗？")) return;
 
     const res = await fetch(`/api/tasks/${taskId}`, {
       method: "DELETE",
@@ -148,13 +148,13 @@ export function TasksContent() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-          <p className="text-gray-500 mt-1">Manage and track all your tasks</p>
+          <h1 className="text-2xl font-bold text-gray-900">任务列表</h1>
+          <p className="text-gray-500 mt-1">管理和跟踪所有任务</p>
         </div>
         <Button asChild>
           <Link href="/tasks/new">
             <Plus className="w-4 h-4 mr-2" />
-            New Task
+            新建任务
           </Link>
         </Button>
       </div>
@@ -183,7 +183,7 @@ export function TasksContent() {
           </>
         ) : filteredTasks.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <p className="text-gray-500">No tasks found</p>
+            <p className="text-gray-500">未找到任务</p>
             {(status !== "ALL" || priority !== "ALL" || search) && (
               <Button
                 variant="link"
@@ -194,7 +194,7 @@ export function TasksContent() {
                   setSearch("");
                 }}
               >
-                Clear filters
+                清除筛选
               </Button>
             )}
           </div>
@@ -215,8 +215,8 @@ export function TasksContent() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-sm text-gray-500">
-            Showing {(page - 1) * ITEMS_PER_PAGE + 1} to{" "}
-            {Math.min(page * ITEMS_PER_PAGE, total)} of {total} tasks
+            显示第 {(page - 1) * ITEMS_PER_PAGE + 1} 到{" "}
+            {Math.min(page * ITEMS_PER_PAGE, total)} 项，共 {total} 个任务
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -226,10 +226,10 @@ export function TasksContent() {
               onClick={() => setPage((p) => p - 1)}
             >
               <ChevronLeft className="w-4 h-4" />
-              Previous
+              上一页
             </Button>
             <span className="text-sm text-gray-600 px-2">
-              Page {page} of {totalPages}
+              第 {page} 页，共 {totalPages} 页
             </span>
             <Button
               variant="outline"
@@ -237,7 +237,7 @@ export function TasksContent() {
               disabled={!canNext}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next
+              下一页
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>

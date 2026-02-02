@@ -101,7 +101,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) return;
+    if (!confirm("确定要删除这个任务吗？")) return;
 
     const res = await fetch(`/api/tasks/${taskId}`, {
       method: "DELETE",
@@ -117,13 +117,13 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-1">Welcome back, here is your task overview</p>
+          <h1 className="text-2xl font-bold text-gray-900">工作台</h1>
+          <p className="text-gray-500 mt-1">欢迎回来，查看您的任务概览</p>
         </div>
         <Button asChild>
           <Link href="/tasks/new">
             <Plus className="w-4 h-4 mr-2" />
-            New Task
+            新建任务
           </Link>
         </Button>
       </div>
@@ -131,28 +131,28 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Pending Tasks"
+          title="待办任务"
           value={stats.pending}
           icon={ClipboardList}
           color="primary"
           href="/tasks?status=NOT_STARTED"
         />
         <StatCard
-          title="In Progress"
+          title="进行中"
           value={stats.inProgress}
           icon={Clock}
           color="blue"
           href="/tasks?status=IN_PROGRESS"
         />
         <StatCard
-          title="Due This Week"
+          title="本周到期"
           value={stats.dueSoon}
           icon={AlertTriangle}
           color="warning"
           href="/tasks?dueBefore=7"
         />
         <StatCard
-          title="Overdue"
+          title="已逾期"
           value={stats.overdue}
           icon={AlertTriangle}
           color="danger"
@@ -163,12 +163,12 @@ export default function DashboardPage() {
       {/* Recent Tasks */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Tasks</h2>
+          <h2 className="text-lg font-semibold text-gray-900">最近任务</h2>
           <Link
             href="/tasks"
             className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
-            View all
+            查看全部
           </Link>
         </div>
 
@@ -181,9 +181,9 @@ export default function DashboardPage() {
             </>
           ) : tasks.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No tasks yet</p>
+              <p className="text-gray-500">暂无任务</p>
               <Button asChild variant="link" className="mt-2">
-                <Link href="/tasks/new">Create your first task</Link>
+                <Link href="/tasks/new">创建第一个任务</Link>
               </Button>
             </div>
           ) : (

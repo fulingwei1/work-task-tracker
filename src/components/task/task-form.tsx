@@ -30,9 +30,9 @@ interface TaskFormProps {
 }
 
 const priorityOptions: { value: TaskPriority; label: string }[] = [
-  { value: "P1", label: "P1 - High Priority" },
-  { value: "P2", label: "P2 - Medium Priority" },
-  { value: "P3", label: "P3 - Low Priority" },
+  { value: "P1", label: "P1 - 高优先级" },
+  { value: "P2", label: "P2 - 中优先级" },
+  { value: "P3", label: "P3 - 低优先级" },
 ];
 
 function formatDateForInput(date: Date): string {
@@ -97,13 +97,13 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
       {/* Title */}
       <div className="space-y-2">
         <Label htmlFor="title">
-          Title <span className="text-red-500">*</span>
+          标题 <span className="text-red-500">*</span>
         </Label>
         <Input
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter task title"
+          placeholder="输入任务标题"
           required
         />
       </div>
@@ -111,11 +111,11 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
       {/* Owner */}
       <div className="space-y-2">
         <Label htmlFor="owner">
-          Owner <span className="text-red-500">*</span>
+          负责人 <span className="text-red-500">*</span>
         </Label>
         <Select value={ownerId} onValueChange={setOwnerId} required>
           <SelectTrigger>
-            <SelectValue placeholder={loadingUsers ? "Loading..." : "Select owner"} />
+            <SelectValue placeholder={loadingUsers ? "加载中..." : "选择负责人"} />
           </SelectTrigger>
           <SelectContent>
             {users.map((user) => (
@@ -129,7 +129,7 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
 
       {/* Priority */}
       <div className="space-y-2">
-        <Label htmlFor="priority">Priority</Label>
+        <Label htmlFor="priority">优先级</Label>
         <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
           <SelectTrigger>
             <SelectValue />
@@ -146,7 +146,7 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
 
       {/* Due Date */}
       <div className="space-y-2">
-        <Label>Due Date</Label>
+        <Label>截止日期</Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -157,7 +157,7 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dueDate ? dueDate.toLocaleDateString() : "Select date"}
+              {dueDate ? dueDate.toLocaleDateString() : "选择日期"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -173,12 +173,12 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
 
       {/* Acceptance Criteria */}
       <div className="space-y-2">
-        <Label htmlFor="acceptanceCriteria">Acceptance Criteria</Label>
+        <Label htmlFor="acceptanceCriteria">验收标准</Label>
         <Textarea
           id="acceptanceCriteria"
           value={acceptanceCriteria}
           onChange={(e) => setAcceptanceCriteria(e.target.value)}
-          placeholder="What needs to be done for this task to be complete?"
+          placeholder="完成此任务需要满足哪些条件？"
           rows={4}
         />
       </div>
@@ -191,10 +191,10 @@ export function TaskForm({ initialData, onSubmit, isLoading }: TaskFormProps) {
           onClick={() => router.back()}
           disabled={isLoading}
         >
-          Cancel
+          取消
         </Button>
         <Button type="submit" disabled={isLoading || !title.trim() || !ownerId}>
-          {isLoading ? "Saving..." : initialData ? "Update Task" : "Create Task"}
+          {isLoading ? "保存中..." : initialData ? "更新任务" : "创建任务"}
         </Button>
       </div>
     </form>

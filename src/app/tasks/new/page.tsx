@@ -46,11 +46,11 @@ export default function NewTaskPage() {
         <Button variant="ghost" asChild className="mb-4">
           <Link href="/tasks">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Tasks
+            返回任务列表
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">Create Task</h1>
-        <p className="text-gray-500 mt-1">Create a new task and assign it to a team member</p>
+        <h1 className="text-2xl font-bold text-gray-900">新建任务</h1>
+        <p className="text-gray-500 mt-1">创建一个新任务并分配给团队成员</p>
       </div>
 
       {/* Error Message */}

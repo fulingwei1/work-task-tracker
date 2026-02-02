@@ -40,19 +40,19 @@ interface ProgressUpdateDialogProps {
 }
 
 const statusOptions: { value: TaskStatus; label: string }[] = [
-  { value: "NOT_STARTED", label: "Not Started" },
-  { value: "IN_PROGRESS", label: "In Progress" },
-  { value: "PENDING_REVIEW", label: "Pending Review" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "BLOCKED", label: "Blocked" },
+  { value: "NOT_STARTED", label: "未开始" },
+  { value: "IN_PROGRESS", label: "进行中" },
+  { value: "PENDING_REVIEW", label: "待审核" },
+  { value: "COMPLETED", label: "已完成" },
+  { value: "BLOCKED", label: "已阻塞" },
 ];
 
 const blockerTypeOptions = [
-  { value: "DEPENDENCY", label: "Waiting for dependency" },
-  { value: "RESOURCE", label: "Resource unavailable" },
-  { value: "TECHNICAL", label: "Technical blocker" },
-  { value: "EXTERNAL", label: "External dependency" },
-  { value: "OTHER", label: "Other" },
+  { value: "DEPENDENCY", label: "等待依赖" },
+  { value: "RESOURCE", label: "资源不可用" },
+  { value: "TECHNICAL", label: "技术阻塞" },
+  { value: "EXTERNAL", label: "外部依赖" },
+  { value: "OTHER", label: "其他" },
 ];
 
 export function ProgressUpdateDialog({
@@ -98,7 +98,7 @@ export function ProgressUpdateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Update Progress</DialogTitle>
+          <DialogTitle>更新进度</DialogTitle>
           <DialogDescription className="truncate">
             {taskTitle}
           </DialogDescription>
@@ -108,7 +108,7 @@ export function ProgressUpdateDialog({
           {/* Progress */}
           <div className="space-y-2">
             <Label htmlFor="progress">
-              Progress: {progressPercent}%
+              进度: {progressPercent}%
             </Label>
             <Input
               id="progress"
@@ -123,7 +123,7 @@ export function ProgressUpdateDialog({
 
           {/* Status */}
           <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status">状态</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
               <SelectTrigger>
                 <SelectValue />
@@ -142,10 +142,10 @@ export function ProgressUpdateDialog({
           {status === "BLOCKED" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="blockerType">Blocker Type</Label>
+                <Label htmlFor="blockerType">阻塞类型</Label>
                 <Select value={blockerType} onValueChange={setBlockerType}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select blocker type" />
+                    <SelectValue placeholder="选择阻塞类型" />
                   </SelectTrigger>
                   <SelectContent>
                     {blockerTypeOptions.map((opt) => (
@@ -158,12 +158,12 @@ export function ProgressUpdateDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="blockerDesc">Blocker Description</Label>
+                <Label htmlFor="blockerDesc">阻塞描述</Label>
                 <Textarea
                   id="blockerDesc"
                   value={blockerDesc}
                   onChange={(e) => setBlockerDesc(e.target.value)}
-                  placeholder="Describe the blocker..."
+                  placeholder="描述阻塞情况..."
                   rows={2}
                 />
               </div>
@@ -172,18 +172,18 @@ export function ProgressUpdateDialog({
 
           {/* Next Action */}
           <div className="space-y-2">
-            <Label htmlFor="nextAction">Next Action</Label>
+            <Label htmlFor="nextAction">下一步行动</Label>
             <Input
               id="nextAction"
               value={nextAction}
               onChange={(e) => setNextAction(e.target.value)}
-              placeholder="What's the next step?"
+              placeholder="下一步是什么？"
             />
           </div>
 
           {/* Estimated Completion */}
           <div className="space-y-2">
-            <Label>Estimated Completion</Label>
+            <Label>预计完成时间</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -196,7 +196,7 @@ export function ProgressUpdateDialog({
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {estimatedCompletion
                     ? estimatedCompletion.toLocaleDateString()
-                    : "Select date"}
+                    : "选择日期"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -217,10 +217,10 @@ export function ProgressUpdateDialog({
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
-              Cancel
+              取消
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Update"}
+              {isLoading ? "保存中..." : "保存更新"}
             </Button>
           </DialogFooter>
         </form>

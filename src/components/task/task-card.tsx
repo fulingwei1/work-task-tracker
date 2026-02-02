@@ -23,9 +23,9 @@ interface TaskCardProps {
 }
 
 function formatDate(dateString: string | null): string {
-  if (!dateString) return "No due date";
+  if (!dateString) return "无截止日期";
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString("zh-CN", {
     month: "short",
     day: "numeric",
   });
@@ -82,15 +82,15 @@ export function TaskCard({ task, onEdit, onUpdateProgress, onDelete }: TaskCardP
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onEdit}>
                 <Edit className="w-4 h-4 mr-2" />
-                Edit Task
+                编辑任务
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onUpdateProgress}>
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Update Progress
+                更新进度
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onDelete} className="text-red-500">
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete Task
+                删除任务
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -37,21 +37,21 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  if (diffMins < 1) return "刚刚"
+  if (diffMins < 60) return `${diffMins}分钟前`
+  if (diffHours < 24) return `${diffHours}小时前`
+  if (diffDays < 7) return `${diffDays}天前`
+  return date.toLocaleDateString("zh-CN")
 }
 
 function getNotificationTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    TASK_ASSIGNED: "Task Assigned",
-    TASK_DUE_SOON: "Due Soon",
-    TASK_OVERDUE: "Overdue",
-    TASK_NO_UPDATE: "No Update",
-    TASK_BLOCKED: "Blocked",
-    TASK_STATUS_CHANGED: "Status Changed",
+    TASK_ASSIGNED: "任务分配",
+    TASK_DUE_SOON: "即将到期",
+    TASK_OVERDUE: "已逾期",
+    TASK_NO_UPDATE: "无更新",
+    TASK_BLOCKED: "已阻塞",
+    TASK_STATUS_CHANGED: "状态变更",
   }
   return labels[type] || type
 }
@@ -149,7 +149,7 @@ export function NotificationList() {
             onClick={fetchNotifications}
             className="mt-4"
           >
-            Retry
+            重试
           </Button>
         </div>
       </div>
@@ -163,8 +163,8 @@ export function NotificationList() {
           <h1 className="text-2xl font-bold text-gray-900">通知中心</h1>
           <p className="text-gray-500 mt-1">
             {unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
-              : "All notifications read"}
+              ? `${unreadCount} 条未读通知`
+              : "已阅读全部通知"}
           </p>
         </div>
         <Button
@@ -182,7 +182,7 @@ export function NotificationList() {
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-6">
             <Bell className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-gray-500 text-center">No notifications yet</p>
+            <p className="text-gray-500 text-center">暂无通知</p>
           </div>
         ) : (
           notifications.map((notification) => (
@@ -223,7 +223,7 @@ export function NotificationList() {
                         onClick={() => handleMarkAsRead(notification.id)}
                         className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                       >
-                        Mark as read
+                        标记已读
                       </button>
                     )}
                     {notification.task && (
@@ -237,7 +237,7 @@ export function NotificationList() {
                         className="inline-flex items-center text-xs text-gray-500 hover:text-indigo-600 font-medium"
                       >
                         <ExternalLink className="w-3 h-3 mr-1" />
-                        View task
+                        查看任务
                       </Link>
                     )}
                   </div>

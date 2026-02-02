@@ -21,20 +21,20 @@ interface TaskFiltersProps {
 }
 
 const statusOptions: { value: TaskStatus | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All Status" },
-  { value: "NOT_STARTED", label: "Not Started" },
-  { value: "IN_PROGRESS", label: "In Progress" },
-  { value: "PENDING_REVIEW", label: "Pending Review" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "BLOCKED", label: "Blocked" },
-  { value: "CANCELLED", label: "Cancelled" },
+  { value: "ALL", label: "全部状态" },
+  { value: "NOT_STARTED", label: "未开始" },
+  { value: "IN_PROGRESS", label: "进行中" },
+  { value: "PENDING_REVIEW", label: "待审核" },
+  { value: "COMPLETED", label: "已完成" },
+  { value: "BLOCKED", label: "已阻塞" },
+  { value: "CANCELLED", label: "已取消" },
 ];
 
 const priorityOptions: { value: TaskPriority | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All Priorities" },
-  { value: "P1", label: "P1 - High" },
-  { value: "P2", label: "P2 - Medium" },
-  { value: "P3", label: "P3 - Low" },
+  { value: "ALL", label: "全部优先级" },
+  { value: "P1", label: "P1 - 高" },
+  { value: "P2", label: "P2 - 中" },
+  { value: "P3", label: "P3 - 低" },
 ];
 
 export function TaskFilters({
@@ -51,7 +51,7 @@ export function TaskFilters({
       <div className="relative flex-1 min-w-[200px] max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <Input
-          placeholder="Search tasks..."
+          placeholder="搜索任务..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-9"
@@ -61,7 +61,7 @@ export function TaskFilters({
       {/* Status Filter */}
       <Select value={status} onValueChange={(v) => onStatusChange(v as TaskStatus | "ALL")}>
         <SelectTrigger className="w-[160px]">
-          <SelectValue placeholder="All Status" />
+          <SelectValue placeholder="全部状态" />
         </SelectTrigger>
         <SelectContent>
           {statusOptions.map((opt) => (
@@ -75,7 +75,7 @@ export function TaskFilters({
       {/* Priority Filter */}
       <Select value={priority} onValueChange={(v) => onPriorityChange(v as TaskPriority | "ALL")}>
         <SelectTrigger className="w-[160px]">
-          <SelectValue placeholder="All Priorities" />
+          <SelectValue placeholder="全部优先级" />
         </SelectTrigger>
         <SelectContent>
           {priorityOptions.map((opt) => (

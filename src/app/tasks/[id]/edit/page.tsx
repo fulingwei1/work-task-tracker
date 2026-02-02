@@ -28,9 +28,9 @@ export default function EditTaskPage({ params }: PageProps) {
         const res = await fetch(`/api/tasks/${id}`);
         if (!res.ok) {
           if (res.status === 404) {
-            setError("Task not found");
+            setError("任务未找到");
           } else {
-            setError("Failed to load task");
+            setError("加载任务失败");
           }
           return;
         }
@@ -39,7 +39,7 @@ export default function EditTaskPage({ params }: PageProps) {
         setTask(data.data);
       } catch (err) {
         console.error("Failed to fetch task:", err);
-        setError("Failed to load task");
+        setError("加载任务失败");
       } finally {
         setIsLoading(false);
       }
@@ -67,13 +67,13 @@ export default function EditTaskPage({ params }: PageProps) {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update task");
+        throw new Error(errorData.error || "更新任务失败");
       }
 
       router.push(`/tasks/${id}`);
     } catch (err) {
       console.error("Failed to update task:", err);
-      setError(err instanceof Error ? err.message : "Failed to update task");
+      setError(err instanceof Error ? err.message : "更新任务失败");
     } finally {
       setIsSaving(false);
     }
@@ -100,7 +100,7 @@ export default function EditTaskPage({ params }: PageProps) {
         <Button variant="ghost" asChild>
           <Link href="/tasks">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Tasks
+            返回任务列表
           </Link>
         </Button>
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -118,11 +118,11 @@ export default function EditTaskPage({ params }: PageProps) {
         <Button variant="ghost" asChild className="mb-4">
           <Link href={`/tasks/${id}`}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Task
+            返回任务详情
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Task</h1>
-        <p className="text-gray-500 mt-1">Update task details</p>
+        <h1 className="text-2xl font-bold text-gray-900">编辑任务</h1>
+        <p className="text-gray-500 mt-1">更新任务详细信息</p>
       </div>
 
       {/* Error Message */}
